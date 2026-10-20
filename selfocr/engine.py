@@ -26,9 +26,12 @@ import numpy as np
 from indra_ocr import Converter, InputError, OrtOCR, model_dir
 from indra_ocr.models import ModelError
 
+from .htmltext import strip_html_tags
+
 MAX_SIDE = 1600  # ブラウザに送るプレビュー画像の長辺
 MODES = ("auto", "ocr", "text")
 PREVIEW_QUALITY = 82
+PAGE_CACHE = 32  # 認識結果のキャッシュ件数 (設定だけ変えて読み直すとき用)
 
 
 class Engine:
@@ -46,6 +49,7 @@ class Engine:
         self._ocrs: dict[tuple[bool, bool], OrtOCR] = {}
         self._lock = threading.RLock()  # page() の中から _ocr() を呼べるように
         self._docs: dict[str, dict[str, Any]] = {}
+        self._cache: dict[tuple, dict[str, Any]] = {}
         self._tmp = tempfile.TemporaryDirectory(prefix="selfocr_")
 
     # --- 認識器 -------------------------------------------------------------
@@ -114,6 +118,13 @@ class Engine:
                 os.remove(doc["path"])
             except OSError:
                 pass
+            for key in [k for k in self._cache if k[0] == oldest]:
+                self._cache.pop(key, None)
+
+    def _trim_cache(self) -> None:
+        """認識結果のキャッシュを古いものから捨てる."""
+        while len(self._cache) > PAGE_CACHE:
+            self._cache.pop(next(iter(self._cache)), None)
 
     # --- ページの読み出し ----------------------------------------------------
     def page(self, did: str, n: int, opts: dict | None = None) -> dict:
@@ -124,6 +135,8 @@ class Engine:
         math = bool(opts.get("math"))
         furniture = bool(opts.get("furniture"))
         dpi = float(opts.get("dpi") or 200.0)
+        image_ocr = bool(opts.get("image_ocr", True))
+        strip_html = bool(opts.get("strip_html", True))
         with self._lock:
             doc = self._docs.get(did)
         if doc is None:
@@ -131,13 +144,46 @@ class Engine:
         if not 0 <= n < doc["pages"]:
             raise InputError("page out of range")
 
+        # 認識に必要な設定が同じなら, 読み直しではキャッシュを使う.
+        key = (did, n, mode, dpi, math, furniture, image_ocr)
+        with self._lock:
+            raw = self._cache.get(key)
+        if raw is None:
+            raw = self._recognize(doc, n, mode, dpi, math, furniture, image_ocr)
+            with self._lock:
+                self._cache[key] = raw
+                self._trim_cache()
+        return self._apply_strip(raw, strip_html)
+
+    @staticmethod
+    def _apply_strip(raw: dict, strip_html: bool) -> dict:
+        """HTML タグ除去の指定を認識結果に適用する."""
+        result = dict(raw)
+        result["json"] = dict(raw.get("json") or {})
+        if strip_html:
+            result["markdown"] = strip_html_tags(raw.get("markdown") or "")
+            result["text"] = strip_html_tags(raw.get("text") or "")
+            result["json"]["markdown"] = strip_html_tags(
+                (raw.get("json") or {}).get("markdown") or ""
+            )
+        return result
+
+    def _recognize(
+        self,
+        doc: dict,
+        n: int,
+        mode: str,
+        dpi: float,
+        math: bool,
+        furniture: bool,
+        image_ocr: bool,
+    ) -> dict:
+        """1 ページを読み取る (重い処理はここ)."""
         import cv2
 
         with self._lock:
             ocr = self._ocr(math, furniture)
-            converter = Converter(
-                ocr, dpi=dpi, mode=mode, image_ocr=bool(opts.get("image_ocr", True))
-            )
+            converter = Converter(ocr, dpi=dpi, mode=mode, image_ocr=image_ocr)
             t0 = time.perf_counter()
             if doc["is_pdf"]:
                 import pypdfium2 as pdfium

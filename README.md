@@ -3,7 +3,7 @@
 自分でホストする OCR サービス. [Indra OCR](https://github.com/datalab-to/indra) (CPU で動く
 高速な OCR モデル) を使う. ブラウザから画像を / PDF を投げると Markdown として読み上げてくれる.
 
-- バージョン: **v.0.1.0**
+- バージョン: **v.0.2.0**
 - ポート: **3369**
 
 ## できること
@@ -13,12 +13,26 @@
 | ファイルから OCR | 画像 (PNG / JPG / TIFF など) と PDF をアップロードして OCR |
 | 画面キャプチャから OCR | 画面を取り込み, 範囲を選んでその部分だけをスキャン |
 | 検出枠の重ね表示 | 読み取った行とレイアウト枠を画像の上に表示 |
+| HTMLタグ除去 | 表などの HTML タグを取り除いて表示 (オプション, 既定は On) |
 | Markdown / テキスト / JSON で保存 | ページごとにコピー・ダウンロード |
 | アップデート | GitHub (https://github.com/hirogura/selfocr.git) から最新版に更新して自動再起動 |
 | 再起動 | 画面の上のボタンでサービスを再起動 |
 
 PDF では, テキスト層が使えるページはそのまま読み, 画像ページの部分だけ OCR する
 (モードで「常に OCR」「テキスト層のみ」も選べる).
+
+## オプション
+
+| 項目 | 既定値 | 内容 |
+| --- | --- | --- |
+| テキスト取得 | 自動 | PDF のテキスト層を優先するか, 常に OCR するか |
+| 解像度 (PDF) | 200 dpi | PDF を画像に読み込む時の解像度 |
+| 数式を LaTeX で | Off | 数式を `$...$` として書き出す |
+| ヘッダ・フッタを保持 | Off | ページ上部・下部の繰り返しを消さない |
+| HTMLタグ除去 | On | 表などに出た HTML タグ (`<table>` / `<tr>` / `<th>`) を取り除いて表示する |
+
+「HTMLタグ除去」を Off にすると, OCR の結果に含まれた HTML タグがそのまま
+(文字列として) 残る. 表はセルを空白で区切った行として表示される.
 
 ## インストール
 
@@ -74,6 +88,17 @@ sudo ./scripts/install.sh
 | POST | `/api/update` | GitHub からのアップデート (バックグラウンド) |
 | GET | `/api/update/status` | アップデートの進行状況 |
 
+`opts` の値:
+
+| キー | 既定値 | 内容 |
+| --- | --- | --- |
+| `mode` | `auto` | `auto` / `ocr` / `text` |
+| `dpi` | `200` | PDF を画像に読み込む時の解像度 |
+| `math` | `false` | 数式を LaTeX で書く |
+| `furniture` | `false` | ヘッダ・フッタを保持する |
+| `strip_html` | `true` | HTML タグを取り除く |
+| `image_ocr` | `true` | PDF の画像ページも OCR する |
+
 ## 開発
 
 ```shell
@@ -86,6 +111,7 @@ sudo ./scripts/install.sh
 selfocr/
   app.py       HTTP サーバーと API
   engine.py    Indra OCR のラッパー (アップロードとページ読み出し)
+  htmltext.py  HTML タグの除去
   service.py   アップデート (git pull) と再起動
   config.py    設定
   static/      画面 (HTML / CSS / JS)

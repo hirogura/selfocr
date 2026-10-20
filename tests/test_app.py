@@ -14,8 +14,12 @@ from selfocr.config import SETTINGS
 
 
 @pytest.fixture(scope="module")
-def server():
-    app = App(SETTINGS)
+def app():
+    return App(SETTINGS)
+
+
+@pytest.fixture(scope="module")
+def server(app):
     httpd = Server(("127.0.0.1", 0), make_handler(app))
     thread = threading.Thread(target=httpd.serve_forever, daemon=True)
     thread.start()
@@ -41,6 +45,13 @@ def test_index_has_version(server):
     assert VERSION_LABEL in body
     assert "アップデート" in body
     assert "再起動" in body
+
+
+def test_index_has_strip_html_option(server):
+    status, body = get(f"{server}/")
+    assert status == 200
+    assert "opt-strip-html" in body
+    assert "HTMLタグ除去" in body
 
 
 def test_info(server):
@@ -91,3 +102,64 @@ def test_update_status(server):
     data = json.loads(body)
     assert status == 200
     assert data["state"] in ("idle", "running", "done", "error", "restarting")
+
+
+def test_page_strips_html(server, app, monkeypatch):
+    import cv2
+    import numpy as np
+
+    table = "<table>\n<tr><th>Name</th></tr>\n<tr><td>Apple</td></tr>\n</table>"
+    monkeypatch.setattr(
+        app.engine,
+        "_recognize",
+        lambda *a, **k: {
+            "page": 1,
+            "pages": 1,
+            "name": "table.png",
+            "w": 10,
+            "h": 10,
+            "img": "data:image/jpeg;base64,",
+            "lines": [],
+            "blocks": [],
+            "markdown": table,
+            "text": "Name Apple",
+            "source": "ocr",
+            "note": "",
+            "rotation": 0,
+            "skew": 0,
+            "vertical": False,
+            "timings": {"total_ms": 1},
+            "json": {"page": 0, "markdown": table},
+        },
+    )
+
+    img = np.full((60, 60), 255, np.uint8)
+    ok, buf = cv2.imencode(".png", img)
+    assert ok
+    status, body = post(
+        f"{server}/api/upload",
+        buf.tobytes(),
+        {"Content-Type": "application/octet-stream", "X-Filename": "table.png"},
+    )
+    did = json.loads(body)["id"]
+
+    def page(strip_html):
+        status, body = post(
+            f"{server}/api/page",
+            json.dumps(
+                {"id": did, "n": 0, "opts": {"mode": "ocr", "strip_html": strip_html}}
+            ).encode(),
+            {"Content-Type": "application/json"},
+        )
+        assert status == 200
+        return json.loads(body)
+
+    stripped = page(True)
+    assert stripped["markdown"] == "Name\nApple"
+    assert "<table>" not in stripped["markdown"]
+    assert "<table>" not in stripped["html"]
+    assert stripped["json"]["markdown"] == "Name\nApple"
+
+    kept = page(False)
+    assert kept["markdown"] == table
+    assert "<table>" in kept["markdown"]

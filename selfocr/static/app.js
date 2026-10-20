@@ -39,6 +39,7 @@
       dpi: parseFloat($('opt-dpi').value),
       math: $('opt-math').checked,
       furniture: $('opt-furniture').checked,
+      strip_html: $('opt-strip-html').checked,
       image_ocr: true,
     };
   }
@@ -216,7 +217,7 @@
     const result = state.results[state.page];
     if (result) drawPreview(result);
   });
-  $('btn-rescan').addEventListener('click', async () => {
+  async function rescan() {
     if (!state.docId || state.busy) return;
     state.busy = true;
     try {
@@ -224,7 +225,11 @@
     } finally {
       state.busy = false;
     }
-  });
+  }
+
+  $('btn-rescan').addEventListener('click', rescan);
+  // HTMLタグ除去は認識結果の後処理だけなので, すぐ反映する.
+  $('opt-strip-html').addEventListener('change', rescan);
 
   // ---------- コピー / 保存 ----------
   async function copyText(text) {

@@ -75,3 +75,25 @@ def test_unknown_document(engine):
 
     with pytest.raises(InputError):
         engine.page("deadbeef", 0, {})
+
+
+def test_apply_strip():
+    raw = {
+        "markdown": "<table>\n<tr><td>a</td></tr>\n</table>",
+        "text": "a",
+        "json": {"markdown": "<table>\n<tr><td>a</td></tr>\n</table>"},
+    }
+    stripped = Engine._apply_strip(raw, True)
+    assert stripped["markdown"] == "a"
+    assert stripped["json"]["markdown"] == "a"
+    kept = Engine._apply_strip(raw, False)
+    assert kept["markdown"] == raw["markdown"]
+    assert kept["json"]["markdown"] == raw["json"]["markdown"]
+
+
+def test_page_is_cached(engine):
+    doc = engine.upload(make_image(), "cache.png")
+    first = engine.page(doc["id"], 0, {"mode": "ocr"})
+    second = engine.page(doc["id"], 0, {"mode": "ocr", "strip_html": False})
+    # 認識し直していないので, 読み取りにかかった時間が同じままのはず.
+    assert second["timings"]["render_ms"] == first["timings"]["render_ms"]
