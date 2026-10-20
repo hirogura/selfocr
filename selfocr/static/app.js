@@ -231,6 +231,44 @@
   // HTMLタグ除去は認識結果の後処理だけなので, すぐ反映する.
   $('opt-strip-html').addEventListener('change', rescan);
 
+  // ---------- テンポラリデータ削除 ----------
+  function clearDocument() {
+    state.docId = null;
+    state.pages = 0;
+    state.page = 0;
+    state.results = [];
+    $('filename').textContent = '';
+    $('page-label').textContent = '- / -';
+    $('btn-prev').disabled = true;
+    $('btn-next').disabled = true;
+    $('btn-rescan').disabled = true;
+    $('out-meta').innerHTML = '';
+    setProgress(null);
+    const text = $('out-text');
+    text.textContent = '';
+    text.classList.add('is-empty');
+    const canvas = $('preview');
+    canvas.width = 0;
+    canvas.height = 0;
+  }
+
+  $('btn-cleanup').addEventListener('click', async () => {
+    if (state.busy) return;
+    state.busy = true;
+    const btn = $('btn-cleanup');
+    btn.classList.add('is-busy');
+    try {
+      const res = await api('/api/cleanup', { method: 'POST' });
+      clearDocument();
+      toast(`テンポラリデータを削除しました (${res.removed} 件)`, 'ok');
+    } catch (err) {
+      toast(err.message, 'err');
+    } finally {
+      btn.classList.remove('is-busy');
+      state.busy = false;
+    }
+  });
+
   // ---------- コピー / 保存 ----------
   async function copyText(text) {
     try {

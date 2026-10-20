@@ -13,6 +13,7 @@ from __future__ import annotations
 
 import base64
 import os
+import shutil
 import tempfile
 import threading
 import time
@@ -32,6 +33,7 @@ MAX_SIDE = 1600  # ブラウザに送るプレビュー画像の長辺
 MODES = ("auto", "ocr", "text")
 PREVIEW_QUALITY = 82
 PAGE_CACHE = 32  # 認識結果のキャッシュ件数 (設定だけ変えて読み直すとき用)
+TMP_PREFIX = "selfocr_"  # テンポラリディレクトリの prefix
 
 
 class Engine:
@@ -50,7 +52,8 @@ class Engine:
         self._lock = threading.RLock()  # page() の中から _ocr() を呼べるように
         self._docs: dict[str, dict[str, Any]] = {}
         self._cache: dict[tuple, dict[str, Any]] = {}
-        self._tmp = tempfile.TemporaryDirectory(prefix="selfocr_")
+        self._tmp = tempfile.TemporaryDirectory(prefix=TMP_PREFIX)
+        self._tmp_dir = Path(self._tmp.name)
 
     # --- 認識器 -------------------------------------------------------------
     def _ocr(self, math: bool, furniture: bool) -> OrtOCR:
@@ -78,7 +81,7 @@ class Engine:
             raise InputError("empty file")
         is_pdf = data[:5] == b"%PDF-"
         did = uuid.uuid4().hex[:12]
-        path = Path(self._tmp.name) / (did + (".pdf" if is_pdf else ".bin"))
+        path = self._tmp_dir / (did + (".pdf" if is_pdf else ".bin"))
         path.write_bytes(data)
         if is_pdf:
             import pypdfium2 as pdfium
@@ -125,6 +128,61 @@ class Engine:
         """認識結果のキャッシュを古いものから捨てる."""
         while len(self._cache) > PAGE_CACHE:
             self._cache.pop(next(iter(self._cache)), None)
+
+    # --- テンポラリの削除 ----------------------------------------------------
+    def cleanup(self) -> dict:
+        """テンポラリディレクトリのファイルを全部消して, 文書の状態を空にする.
+
+        再起動 (``execv``) で残った古いディレクトリも一緒に消す.
+        """
+        removed = 0
+        freed = 0
+        with self._lock:
+            docs = list(self._docs.values())
+            self._docs.clear()
+            self._cache.clear()
+            paths = {doc["path"] for doc in docs}
+            paths.update(p for p in self._tmp_dir.glob("*") if p.is_file())
+            for path in paths:
+                try:
+                    size = path.stat().st_size
+                    path.unlink()
+                except OSError:
+                    continue
+                removed += 1
+                freed += size
+        removed, freed = self._cleanup_orphans(removed, freed)
+        return {
+            "removed": removed,
+            "bytes": freed,
+            "dir": str(self._tmp_dir),
+        }
+
+    def _cleanup_orphans(self, removed: int, freed: int) -> tuple[int, int]:
+        """前のインスタンスが残したテンポラリディレクトリを消す."""
+        root = Path(tempfile.gettempdir())
+        try:
+            current = self._tmp_dir.resolve()
+        except OSError:
+            current = self._tmp_dir
+        for directory in root.glob(TMP_PREFIX + "*"):
+            if not directory.is_dir():
+                continue
+            try:
+                if directory.resolve() == current:
+                    continue
+            except OSError:
+                continue
+            for path in directory.rglob("*"):
+                if not path.is_file():
+                    continue
+                try:
+                    freed += path.stat().st_size
+                except OSError:
+                    pass
+                removed += 1
+            shutil.rmtree(directory, ignore_errors=True)
+        return removed, freed
 
     # --- ページの読み出し ----------------------------------------------------
     def page(self, did: str, n: int, opts: dict | None = None) -> dict:

@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from pathlib import Path
+
 import numpy as np
 import pytest
 
@@ -97,3 +99,24 @@ def test_page_is_cached(engine):
     second = engine.page(doc["id"], 0, {"mode": "ocr", "strip_html": False})
     # 認識し直していないので, 読み取りにかかった時間が同じままのはず.
     assert second["timings"]["render_ms"] == first["timings"]["render_ms"]
+
+
+def test_cleanup_removes_temp_files(engine):
+    import tempfile
+
+    from selfocr.engine import TMP_PREFIX
+
+    orphan = Path(tempfile.gettempdir()) / f"{TMP_PREFIX}pytest-orphan"
+    orphan.mkdir(exist_ok=True)
+    (orphan / "old.png").write_bytes(b"1234")
+
+    doc = engine.upload(make_image(), "temp.png")
+    path = engine._docs[doc["id"]]["path"]
+    assert path.exists()
+
+    result = engine.cleanup()
+    assert result["removed"] >= 2
+    assert not path.exists()
+    assert not orphan.exists()
+    assert list(engine._tmp_dir.glob("*")) == []
+    assert engine._docs == {}

@@ -7,6 +7,7 @@
     GET  /api/health        ヘルスチェック
     POST /api/upload        ファイル (画像 / PDF) のアップロード
     POST /api/page          1 ページ分の OCR 結果
+    POST /api/cleanup       テンポラリディレクトリの削除
     POST /api/restart       サービス再起動
     POST /api/update        GitHub からのアップデート
     GET  /api/update/status アップデートの進行状況
@@ -176,6 +177,8 @@ def make_handler(app: App):
                     result = app.engine.page(req["id"], int(req["n"]), opts)
                     result["html"] = render_markdown(result.get("markdown") or "")
                     self._json(200, result)
+                elif path == "/api/cleanup":
+                    self._json(200, app.engine.cleanup())
                 elif path == "/api/restart":
                     if not self._authorized():
                         return self._error(403, "不正なトークンです")

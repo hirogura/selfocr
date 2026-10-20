@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import json
 import threading
+import urllib.error
 import urllib.request
 
 import pytest
@@ -33,10 +34,15 @@ def get(url):
         return res.status, res.read().decode()
 
 
-def post(url, data: bytes, headers: dict | None = None):
+def post(url, data: bytes, headers: dict | None = None, allow_error: bool = False):
     req = urllib.request.Request(url, data=data, headers=headers or {}, method="POST")
-    with urllib.request.urlopen(req, timeout=60) as res:
-        return res.status, res.read().decode()
+    try:
+        with urllib.request.urlopen(req, timeout=60) as res:
+            return res.status, res.read().decode()
+    except urllib.error.HTTPError as exc:
+        if not allow_error:
+            raise
+        return exc.code, exc.read().decode()
 
 
 def test_index_has_version(server):
@@ -52,6 +58,13 @@ def test_index_has_strip_html_option(server):
     assert status == 200
     assert "opt-strip-html" in body
     assert "HTMLタグ除去" in body
+
+
+def test_index_has_cleanup_button(server):
+    status, body = get(f"{server}/")
+    assert status == 200
+    assert "btn-cleanup" in body
+    assert "テンポラリデータ削除" in body
 
 
 def test_info(server):
@@ -163,3 +176,37 @@ def test_page_strips_html(server, app, monkeypatch):
     kept = page(False)
     assert kept["markdown"] == table
     assert "<table>" in kept["markdown"]
+
+
+def test_cleanup_removes_temp_files(server, app):
+    import cv2
+    import numpy as np
+
+    img = np.full((60, 60), 255, np.uint8)
+    ok, buf = cv2.imencode(".png", img)
+    assert ok
+    status, body = post(
+        f"{server}/api/upload",
+        buf.tobytes(),
+        {"Content-Type": "application/octet-stream", "X-Filename": "temp.png"},
+    )
+    did = json.loads(body)["id"]
+    path = app.engine._docs[did]["path"]
+    assert path.exists()
+
+    status, body = post(f"{server}/api/cleanup", b"")
+    data = json.loads(body)
+    assert status == 200
+    assert data["removed"] >= 1
+    assert not path.exists()
+    assert list(app.engine._tmp_dir.glob("*")) == []
+
+    # 削除後は文書から見えない.
+    status, body = post(
+        f"{server}/api/page",
+        json.dumps({"id": did, "n": 0, "opts": {"mode": "ocr"}}).encode(),
+        {"Content-Type": "application/json"},
+        allow_error=True,
+    )
+    assert status == 400
+    assert "unknown document id" in json.loads(body)["error"]

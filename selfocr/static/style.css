@@ -277,7 +277,13 @@ body {
   background: var(--surface-2);
 }
 .options summary { cursor: pointer; font-weight: 600; font-size: 13px; }
-.options > .btn { margin-top: 10px; }
+.options-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 10px;
+  flex-wrap: wrap;
+}
 .options-grid {
   display: grid;
   grid-template-columns: 1fr 1fr;
