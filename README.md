@@ -23,6 +23,8 @@ PDF では, テキスト層が使えるページはそのまま読み, 画像ペ
 ## インストール
 
 ```shell
+git clone https://github.com/hirogura/selfocr.git /opt/selfocr
+cd /opt/selfocr
 sudo ./scripts/install.sh
 ```
 
