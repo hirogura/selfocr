@@ -1,0 +1,18 @@
+[Unit]
+Description=selfOCR v.0.1.0 (Indra OCR ベースの自ホスト OCR サービス)
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+WorkingDirectory=/opt/selfocr
+ExecStart=/opt/selfocr/.venv/bin/python -m selfocr
+Restart=always
+RestartSec=5
+Environment=PYTHONUNBUFFERED=1
+Environment=SELFOCR_HOST=127.0.0.1
+Environment=SELFOCR_PORT=3369
+# 画面キャプチャは https:// で開いたときだけ使える (localhost でも可)
+
+[Install]
+WantedBy=multi-user.target

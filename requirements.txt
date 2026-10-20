@@ -1,0 +1,10 @@
+# selfOCR が使う依存関係.
+#
+# Indra OCR は GitHub の最新:main を使う (アップデートのボタンでも更新される).
+indra-ocr @ git+https://github.com/datalab-to/indra.git
+
+# Markdown の描画 (サーバ側で HTML にする)
+markdown-it-py
+
+# 画像の読み込み (EXIF の向き対応)
+pillow

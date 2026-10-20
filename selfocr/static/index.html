@@ -1,0 +1,132 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="color-scheme" content="light dark">
+<title>selfOCR</title>
+<link rel="stylesheet" href="/static/style.css">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🔍</text></svg>">
+</head>
+<body>
+<header class="topbar">
+  <div class="brand">
+    <span class="mark" aria-hidden="true">◧</span>
+    <h1>selfOCR</h1>
+    <span class="version" id="version">__VERSION__</span>
+  </div>
+  <div class="top-actions">
+    <button type="button" class="btn" id="btn-update" title="GitHub から最新版に更新します">
+      <span class="ico" aria-hidden="true">⟳</span> アップデート
+    </button>
+    <button type="button" class="btn" id="btn-restart" title="selfOCR サービスを再起動します">
+      <span class="ico" aria-hidden="true">⏻</span> 再起動
+    </button>
+  </div>
+</header>
+
+<main class="layout">
+  <section class="panel" id="panel-input">
+    <div class="tabs" role="tablist">
+      <button type="button" class="tab is-active" data-tab="file" role="tab">ファイル</button>
+      <button type="button" class="tab" data-tab="screen" role="tab">画面キャプチャ</button>
+    </div>
+
+    <!-- ファイル -->
+    <div class="tab-body" id="tab-file">
+      <div class="dropzone" id="dropzone" tabindex="0" role="button" aria-label="ファイルを選択">
+        <div class="dz-icon" aria-hidden="true">⇪</div>
+        <p class="dz-title">画像 / PDF をドロップ</p>
+        <p class="dz-sub">クリックして選ぶ · PNG / JPG / TIFF / PDF</p>
+        <input type="file" id="file-input" accept="image/*,.pdf,application/pdf" hidden>
+      </div>
+      <p class="filename" id="filename"></p>
+    </div>
+
+    <!-- 画面キャプチャ -->
+    <div class="tab-body is-hidden" id="tab-screen">
+      <div class="screen-actions">
+        <button type="button" class="btn btn-primary" id="btn-capture">画面をキャプチャ</button>
+        <button type="button" class="btn" id="btn-paste-hint" title="Ctrl+V で貼り付け">貼り付け (Ctrl+V)</button>
+      </div>
+      <p class="note" id="capture-note"></p>
+      <div class="crop-stage is-empty" id="crop-stage">
+        <canvas id="crop-canvas"></canvas>
+        <div class="crop-sel" id="crop-sel"></div>
+        <div class="crop-empty" id="crop-empty">ここにキャプチャした画面が表示されます</div>
+      </div>
+      <div class="crop-controls">
+        <label class="check"><input type="checkbox" id="chk-crop-sel"> 選択範囲だけ</label>
+        <button type="button" class="btn btn-primary" id="btn-scan-crop" disabled>この範囲をスキャン</button>
+      </div>
+    </div>
+
+    <!-- 共通オプション -->
+    <details class="options" open>
+      <summary>オプション</summary>
+      <div class="options-grid">
+        <label>テキスト取得
+          <select id="opt-mode">
+            <option value="auto">自動 (PDF のテキスト層を優先)</option>
+            <option value="ocr">常に OCR</option>
+            <option value="text">テキスト層のみ</option>
+          </select>
+        </label>
+        <label>解像度 (PDF)
+          <select id="opt-dpi">
+            <option value="200">200 dpi</option>
+            <option value="300">300 dpi</option>
+            <option value="150">150 dpi</option>
+          </select>
+        </label>
+        <label class="check"><input type="checkbox" id="opt-math"> 数式を LaTeX で</label>
+        <label class="check"><input type="checkbox" id="opt-furniture"> ヘッダ・フッタを保持</label>
+      </div>
+      <button type="button" class="btn" id="btn-rescan" disabled>この設定で読み直す</button>
+    </details>
+
+    <div class="progress is-hidden" id="progress">
+      <div class="bar"><span id="progress-bar"></span></div>
+      <p class="progress-text" id="progress-text"></p>
+    </div>
+  </section>
+
+  <section class="panel" id="panel-output">
+    <div class="out-toolbar">
+      <div class="pager">
+        <button type="button" class="btn btn-icon" id="btn-prev" title="前のページ">◀</button>
+        <span id="page-label">- / -</span>
+        <button type="button" class="btn btn-icon" id="btn-next" title="次のページ">▶</button>
+      </div>
+      <div class="out-actions">
+        <label class="check"><input type="checkbox" id="chk-boxes" checked> 検出枠</label>
+        <button type="button" class="btn" id="btn-copy">コピー</button>
+        <button type="button" class="btn" id="btn-md">.md</button>
+        <button type="button" class="btn" id="btn-txt">.txt</button>
+        <button type="button" class="btn" id="btn-json">.json</button>
+      </div>
+    </div>
+    <div class="preview-wrap">
+      <canvas id="preview"></canvas>
+      <div class="empty" id="out-empty">OCR の結果がここに表示されます</div>
+    </div>
+    <div class="meta" id="out-meta"></div>
+    <div class="result-text" id="out-text"></div>
+  </section>
+</main>
+
+<div class="toast" id="toast" hidden></div>
+
+<div class="modal is-hidden" id="modal">
+  <div class="modal-box">
+    <h2 id="modal-title">アップデート</h2>
+    <div class="modal-body" id="modal-body"></div>
+    <div class="modal-actions">
+      <button type="button" class="btn btn-primary" id="modal-close">閉じる</button>
+    </div>
+  </div>
+</div>
+
+<script src="/static/app.js"></script>
+</body>
+</html>
