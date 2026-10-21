@@ -3,7 +3,7 @@
 自分でホストする OCR サービス. [Indra OCR](https://github.com/datalab-to/indra) (CPU で動く
 高速な OCR モデル) を使う. ブラウザから画像を / PDF を投げると Markdown として読み上げてくれる.
 
-- バージョン: **v.0.4.1**
+- バージョン: **v.0.4.2**
 - ポート: **3369**
 
 ## できること
@@ -57,6 +57,8 @@ sudo ./scripts/install.sh
 やること:
 
 1. `.venv` を作って `requirements.txt` を入れる (Indra OCR は GitHub の `main` から入れる)
+   - `python3` があっても `ensurepip` が無い環境では venv を作れないため, Debian/Ubuntu では
+     `python3-venv` を自動で導入する (apt-get が無い環境では手動で導入が必要)
 2. `systemd/selfocr.service` を `/etc/systemd/system/` に置いて有効化する
 3. `tailscale serve` で 3369 番を公開する (この端末だけの tailnet なら `tailscale serve --bg 3369`)
 
