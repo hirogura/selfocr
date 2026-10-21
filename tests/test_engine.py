@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import shutil
 from pathlib import Path
 
 import numpy as np
@@ -102,13 +103,20 @@ def test_page_is_cached(engine):
 
 
 def test_cleanup_removes_temp_files(engine):
+    import os
     import tempfile
 
-    from selfocr.engine import TMP_PREFIX
+    from selfocr.engine import PID_FILE, TMP_PREFIX
 
     orphan = Path(tempfile.gettempdir()) / f"{TMP_PREFIX}pytest-orphan"
     orphan.mkdir(exist_ok=True)
     (orphan / "old.png").write_bytes(b"1234")
+
+    # 動いているプロセスのディレクトリは消さない.
+    alive = Path(tempfile.gettempdir()) / f"{TMP_PREFIX}pytest-alive"
+    alive.mkdir(exist_ok=True)
+    (alive / PID_FILE).write_text(str(os.getpid()), encoding="utf-8")
+    (alive / "keep.png").write_bytes(b"5678")
 
     doc = engine.upload(make_image(), "temp.png")
     path = engine._docs[doc["id"]]["path"]
@@ -118,5 +126,8 @@ def test_cleanup_removes_temp_files(engine):
     assert result["removed"] >= 2
     assert not path.exists()
     assert not orphan.exists()
-    assert list(engine._tmp_dir.glob("*")) == []
+    assert alive.exists()
+    assert (alive / "keep.png").exists()
+    assert list(engine._tmp_dir.glob("*")) == [engine._tmp_dir / PID_FILE]
     assert engine._docs == {}
+    shutil.rmtree(alive, ignore_errors=True)

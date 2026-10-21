@@ -34,6 +34,7 @@ MODES = ("auto", "ocr", "text")
 PREVIEW_QUALITY = 82
 PAGE_CACHE = 32  # 認識結果のキャッシュ件数 (設定だけ変えて読み直すとき用)
 TMP_PREFIX = "selfocr_"  # テンポラリディレクトリの prefix
+PID_FILE = "owner.pid"  # テンポラリディレクトリを作ったプロセス
 
 
 class Engine:
@@ -54,6 +55,15 @@ class Engine:
         self._cache: dict[tuple, dict[str, Any]] = {}
         self._tmp = tempfile.TemporaryDirectory(prefix=TMP_PREFIX)
         self._tmp_dir = Path(self._tmp.name)
+        self._write_pid()
+
+    def _write_pid(self) -> None:
+        """このディレクトリの持ち主を PID で残す (他のインスタンスに消されないため)."""
+        try:
+            self._tmp_dir.mkdir(parents=True, exist_ok=True)
+            (self._tmp_dir / PID_FILE).write_text(str(os.getpid()), encoding="utf-8")
+        except OSError:
+            pass
 
     # --- 認識器 -------------------------------------------------------------
     def _ocr(self, math: bool, furniture: bool) -> OrtOCR:
@@ -81,6 +91,7 @@ class Engine:
             raise InputError("empty file")
         is_pdf = data[:5] == b"%PDF-"
         did = uuid.uuid4().hex[:12]
+        self._tmp_dir.mkdir(parents=True, exist_ok=True)  # 消されている場合の保険
         path = self._tmp_dir / (did + (".pdf" if is_pdf else ".bin"))
         path.write_bytes(data)
         if is_pdf:
@@ -142,7 +153,9 @@ class Engine:
             self._docs.clear()
             self._cache.clear()
             paths = {doc["path"] for doc in docs}
-            paths.update(p for p in self._tmp_dir.glob("*") if p.is_file())
+            paths.update(
+                p for p in self._tmp_dir.glob("*") if p.is_file() and p.name != PID_FILE
+            )
             for path in paths:
                 try:
                     size = path.stat().st_size
@@ -151,6 +164,7 @@ class Engine:
                     continue
                 removed += 1
                 freed += size
+            self._write_pid()
         removed, freed = self._cleanup_orphans(removed, freed)
         return {
             "removed": removed,
@@ -159,7 +173,10 @@ class Engine:
         }
 
     def _cleanup_orphans(self, removed: int, freed: int) -> tuple[int, int]:
-        """前のインスタンスが残したテンポラリディレクトリを消す."""
+        """前のインスタンスが残したテンポラリディレクトリを消す.
+
+        まだ動いているプロセスのディレクトリは消さない.
+        """
         root = Path(tempfile.gettempdir())
         try:
             current = self._tmp_dir.resolve()
@@ -173,6 +190,8 @@ class Engine:
                     continue
             except OSError:
                 continue
+            if self._owner_alive(directory):
+                continue
             for path in directory.rglob("*"):
                 if not path.is_file():
                     continue
@@ -183,6 +202,23 @@ class Engine:
                 removed += 1
             shutil.rmtree(directory, ignore_errors=True)
         return removed, freed
+
+    @staticmethod
+    def _owner_alive(directory: Path) -> bool:
+        """そのディレクトリを作ったプロセスがまだ生きているか."""
+        try:
+            pid = int((directory / PID_FILE).read_text(encoding="utf-8").strip())
+        except (OSError, ValueError):
+            return False
+        if pid <= 0:
+            return False
+        try:
+            os.kill(pid, 0)
+        except ProcessLookupError:
+            return False
+        except OSError:
+            return True
+        return True
 
     # --- ページの読み出し ----------------------------------------------------
     def page(self, did: str, n: int, opts: dict | None = None) -> dict:

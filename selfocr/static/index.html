@@ -25,7 +25,7 @@
   </div>
 </header>
 
-<main class="layout">
+<main class="layout" id="layout">
   <section class="panel" id="panel-input">
     <div class="tabs" role="tablist">
       <button type="button" class="tab is-active" data-tab="file" role="tab">ファイル</button>
@@ -103,6 +103,7 @@
         <button type="button" class="btn btn-icon" id="btn-next" title="次のページ">▶</button>
       </div>
       <div class="out-actions">
+        <button type="button" class="btn" id="btn-layout" title="プレビューと結果を横に並べる">左右</button>
         <label class="check"><input type="checkbox" id="chk-boxes" checked> 検出枠</label>
         <button type="button" class="btn" id="btn-copy">コピー</button>
         <button type="button" class="btn" id="btn-md">.md</button>
@@ -110,12 +111,16 @@
         <button type="button" class="btn" id="btn-json">.json</button>
       </div>
     </div>
-    <div class="preview-wrap">
-      <canvas id="preview"></canvas>
-      <div class="empty" id="out-empty">OCR の結果がここに表示されます</div>
+    <div class="out-body">
+      <div class="preview-wrap">
+        <canvas id="preview"></canvas>
+        <div class="empty" id="out-empty">OCR の結果がここに表示されます</div>
+      </div>
+      <div class="out-side">
+        <div class="meta" id="out-meta"></div>
+        <div class="result-text" id="out-text"></div>
+      </div>
     </div>
-    <div class="meta" id="out-meta"></div>
-    <div class="result-text" id="out-text"></div>
   </section>
 </main>
 

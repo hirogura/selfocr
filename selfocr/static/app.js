@@ -160,6 +160,7 @@
     const text = $('out-text');
     text.innerHTML = result.html || `<pre>${escapeHtml(result.markdown || '')}</pre>`;
     text.classList.toggle('is-empty', !result.markdown);
+    $('out-empty').classList.add('is-hidden');
 
     const timings = result.timings || {};
     const t = timings.total_ms ? `${Math.round(timings.total_ms)} ms` : '-';
@@ -213,6 +214,17 @@
 
   $('btn-prev').addEventListener('click', () => showPage(state.page - 1));
   $('btn-next').addEventListener('click', () => showPage(state.page + 1));
+
+  // ---------- 上下 / 左右 の切り替え ----------
+  $('btn-layout').addEventListener('click', () => {
+    const side = !$('layout').classList.contains('is-side');
+    $('layout').classList.toggle('is-side', side);
+    $('btn-layout').textContent = side ? '上下' : '左右';
+    $('btn-layout').title = side
+      ? 'プレビューと結果を縦に並べる'
+      : 'プレビューと結果を横に並べる';
+  });
+
   $('chk-boxes').addEventListener('change', () => {
     const result = state.results[state.page];
     if (result) drawPreview(result);
@@ -247,6 +259,7 @@
     const text = $('out-text');
     text.textContent = '';
     text.classList.add('is-empty');
+    $('out-empty').classList.remove('is-hidden');
     const canvas = $('preview');
     canvas.width = 0;
     canvas.height = 0;

@@ -67,6 +67,14 @@ def test_index_has_cleanup_button(server):
     assert "テンポラリデータ削除" in body
 
 
+def test_index_has_layout_button(server):
+    status, body = get(f"{server}/")
+    assert status == 200
+    assert "btn-layout" in body
+    assert "左右" in body
+    assert "id=\"layout\"" in body
+
+
 def test_info(server):
     status, body = get(f"{server}/api/info")
     data = json.loads(body)
@@ -199,7 +207,7 @@ def test_cleanup_removes_temp_files(server, app):
     assert status == 200
     assert data["removed"] >= 1
     assert not path.exists()
-    assert list(app.engine._tmp_dir.glob("*")) == []
+    assert [p.name for p in app.engine._tmp_dir.glob("*")] == ["owner.pid"]
 
     # 削除後は文書から見えない.
     status, body = post(

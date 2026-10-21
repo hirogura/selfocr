@@ -331,11 +331,44 @@ body {
   max-height: 52vh;
   min-height: 120px;
   display: flex;
+}
+/* margin: auto で中央寄せする. align-items: center だと, はみ出した上側が
+   スクロールできない場所に出てしまう (PDF の上が見えない原因). */
+.preview-wrap canvas { display: block; max-width: 100%; height: auto; margin: auto; }
+.preview-wrap .empty {
+  position: absolute;
+  inset: 0;
+  display: flex;
   align-items: center;
   justify-content: center;
+  color: var(--ink-3);
+  font-size: 12px;
+  pointer-events: none;
 }
-.preview-wrap canvas { display: block; max-width: 100%; height: auto; }
-.preview-wrap .empty { color: var(--ink-3); font-size: 12px; padding: 30px; }
+
+/* プレビューと結果の並び替え (上下 / 左右) */
+.out-body {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  min-height: 0;
+}
+.out-side {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  min-height: 0;
+}
+.layout.is-side .out-body { flex-direction: row; align-items: stretch; }
+.layout.is-side .preview-wrap { flex: 1 1 50%; min-width: 0; max-height: 60vh; }
+.layout.is-side .out-side { flex: 1 1 50%; min-width: 0; }
+.layout.is-side .result-text { max-height: 58vh; }
+
+@media (max-width: 700px) {
+  .layout.is-side .out-body { flex-direction: column; }
+  .layout.is-side .preview-wrap,
+  .layout.is-side .out-side { flex: 0 1 auto; }
+}
 
 .meta {
   font-size: 12px;
