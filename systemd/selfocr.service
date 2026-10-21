@@ -1,5 +1,5 @@
 [Unit]
-Description=selfOCR v.0.4.0 (Indra OCR ベースの自ホスト OCR サービス)
+Description=selfOCR v.0.4.1 (Indra OCR ベースの自ホスト OCR サービス)
 After=network-online.target
 Wants=network-online.target
 

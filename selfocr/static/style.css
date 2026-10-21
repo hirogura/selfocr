@@ -359,15 +359,29 @@ body {
   gap: 12px;
   min-height: 0;
 }
-.layout.is-side .out-body { flex-direction: row; align-items: stretch; }
-.layout.is-side .preview-wrap { flex: 1 1 50%; min-width: 0; max-height: 60vh; }
-.layout.is-side .out-side { flex: 1 1 50%; min-width: 0; }
-.layout.is-side .result-text { max-height: 58vh; }
 
-@media (max-width: 700px) {
-  .layout.is-side .out-body { flex-direction: column; }
-  .layout.is-side .preview-wrap,
+/* 左右モード: プレビューと結果を画面いっぱいまで表示する */
+.layout.is-side .out-body { flex-direction: row; align-items: stretch; flex: 1; min-height: 0; }
+.layout.is-side .preview-wrap { flex: 1 1 50%; min-width: 0; max-height: none; }
+.layout.is-side .out-side { flex: 1 1 50%; min-width: 0; }
+.layout.is-side .result-text { flex: 1 1 auto; max-height: none; min-height: 0; }
+
+@media (min-width: 901px) {
+  /* 2 カラムのときは, 高さを画面いっぱいまで使う */
+  .layout.is-side {
+    grid-template-rows: minmax(0, 1fr);
+    align-items: stretch;
+  }
+  .layout.is-side #panel-input { overflow: auto; min-height: 0; }
+  .layout.is-side #panel-output { min-height: 0; }
+}
+
+@media (max-width: 900px) {
+  /* 1 カラム (狭い画面) では左右に並べず, 上下に戻す */
+  .layout.is-side .out-body { flex-direction: column; flex: 0 1 auto; }
+  .layout.is-side .preview-wrap { flex: 0 1 auto; max-height: 52vh; }
   .layout.is-side .out-side { flex: 0 1 auto; }
+  .layout.is-side .result-text { flex: 0 1 auto; max-height: 34vh; }
 }
 
 .meta {

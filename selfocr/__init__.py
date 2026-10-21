@@ -1,6 +1,6 @@
 """selfOCR: 自分でホストする小さな OCR Web アプリ (Indra OCR ベース)."""
 
-__version__ = "0.4.0"
+__version__ = "0.4.1"
 
 APP_NAME = "selfOCR"
 VERSION_LABEL = f"v.{__version__}"
